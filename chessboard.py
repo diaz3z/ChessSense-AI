@@ -1,5 +1,15 @@
 import cv2
 import numpy as np
+from ultralytics import YOLO
+import torch
+
+
+# Load the trained YOLOv8 model
+
+torch.cuda.set_device(0)  # Set to your desired GPU number
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = YOLO('runs/detect/train2/weights/best.pt')
+model.to(device)
 
 def reorder(myPoints):
     myPoints = myPoints.reshape((4, 2))
@@ -58,16 +68,39 @@ def warp_chess_board(frame, board_contour, new_width, new_height):
     # Apply the perspective transform to the frame
     warped = cv2.warpPerspective(frame, matrix, (new_width, new_height))
 
+    # Detect and localize chess pieces on the warped image
+    results = model(warped, stream=True)
+    for result in results:
+        boxes = result.boxes
+        for box in boxes:
+            x1, y1, x2, y2, conf, cls = box.xyxy[0].tolist()
+            cv2.rectangle(warped, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+
     return warped
 
 def localize_squares(warped, new_width, new_height):
     # Localize the squares on the warped chess board
-    square_size = new_width // 8  # Assuming an 8x8 chess board
+    square_size = min(new_width // 8, new_height // 8)  # Adjust square size based on smaller dimension
+    board_width = square_size * 8
+    board_height = square_size * 8
+
+    # Calculate the starting position for the chess board
+    start_x = (new_width - board_width) // 2
+    start_y = (new_height - board_height) // 2
+
     for i in range(8):
         for j in range(8):
-            x = j * square_size
-            y = i * square_size
+            x = start_x + j * square_size
+            y = start_y + i * square_size
             cv2.rectangle(warped, (x, y), (x + square_size, y + square_size), (0, 255, 0), 2)
+
+    # Detect and localize chess pieces on the localized squares
+    results = model(warped, stream=True)
+    for result in results:
+        boxes = result.boxes
+        for box in boxes:
+            x1, y1, x2, y2, conf, cls = box.xyxy[0].tolist()
+            cv2.rectangle(warped, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
 
     return warped
 
@@ -99,16 +132,16 @@ while True:
     if board_contour is not None:
         cv2.drawContours(frame, [board_contour], 0, (0, 255, 0), 2)
 
-        # Warp the chess board to a top-down view
+        # Warp the chess board to a top-down view and localize pieces
         warped = warp_chess_board(frame, board_contour, new_width, new_height)
 
-        # Localize the squares on the warped chess board
+        # Localize the squares and pieces on the warped image
         warped = localize_squares(warped, new_width, new_height)
 
         # Display the original frame with the detected chess board
         cv2.imshow('Chess Board Detection', frame)
 
-        # Display the warped chess board with square localization in a second window
+        # Display the warped chess board with localized squares and pieces
         cv2.imshow('Warped Chess Board', warped)
     else:
         cv2.imshow('Chess Board Detection', frame)
