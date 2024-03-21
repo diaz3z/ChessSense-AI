@@ -2,12 +2,12 @@ from ultralytics import YOLO
 import cv2
 import math
 # start webcam
-cap = cv2.VideoCapture(0)
-cap.set(3, 640)gi
+cap = cv2.VideoCapture(1)
+cap.set(3, 640)
 cap.set(4, 480)
 
 # model
-model = YOLO("runs/detect/train/weights/best.pt")
+model = YOLO("runs/detect/train2/weights/best.pt")
 
 # object classes
 classNames = ["black-bishop", "black-king", "black-knight", "black-pawn", "black-queen", "black-rook", "white-bishop", "white-king", "white-knight",
