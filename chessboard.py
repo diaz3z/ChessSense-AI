@@ -31,9 +31,11 @@ def detect_chess_board(frame):
 
     # Perform edge detection using Canny algorithm
     edges = cv2.Canny(blur, 50, 150)
-
+    kernel = np.ones((5, 5))
+    imgDial = cv2.dilate(edges, kernel, iterations=1)
+    imgThreshold = cv2.erode(imgDial, kernel, iterations=1)
     # Find contours in the edge map
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
     # Initialize variables for chess board dimensions
     board_contour = None
@@ -78,11 +80,11 @@ def warp_chess_board(frame, board_contour, new_width, new_height):
 
     return warped
 
-def localize_squares(warped, new_width, new_height):
+def localize_squares(warped, square_size, grid_width, grid_height):
     # Localize the squares on the warped chess board
-    square_size = min(new_width // 8, new_height // 8)  # Adjust square size based on smaller dimension
-    board_width = square_size * 8
-    board_height = square_size * 8
+     # Adjust square size based on smaller dimension
+    board_width = grid_width
+    board_height = grid_height
 
     # Calculate the starting position for the chess board
     start_x = (new_width - board_width) // 2
@@ -92,7 +94,9 @@ def localize_squares(warped, new_width, new_height):
         for j in range(8):
             x = start_x + j * square_size
             y = start_y + i * square_size
-            cv2.rectangle(warped, (x, y), (x + square_size, y + square_size), (0, 255, 0), 2)
+            cv2.rectangle(warped, (x, y),
+                          (x + square_size, y + square_size),
+                          (0,255,0), 2)
 
     # Detect and localize chess pieces on the localized squares
     results = model(warped, stream=True)
@@ -111,9 +115,13 @@ cap = cv2.VideoCapture('Video/1.mp4')
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+square_size = 70
 # Define the desired resolution
 new_width = 640
-new_height = 480
+new_height = 600
+
+grid_width = square_size * 8
+grid_height = square_size * 8
 
 while True:
     # Read a frame from the video
@@ -136,7 +144,7 @@ while True:
         warped = warp_chess_board(frame, board_contour, new_width, new_height)
 
         # Localize the squares and pieces on the warped image
-        warped = localize_squares(warped, new_width, new_height)
+        warped = localize_squares(warped, square_size, grid_width, grid_height)
 
         # Display the original frame with the detected chess board
         cv2.imshow('Chess Board Detection', frame)
