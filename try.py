@@ -1,15 +1,5 @@
 import cv2
 import numpy as np
-from ultralytics import YOLO
-import torch
-
-
-# Load the trained YOLOv8 model
-
-torch.cuda.set_device(0)  # Set to your desired GPU number
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = YOLO('runs/detect/train2/weights/best.pt')
-model.to(device)
 
 def reorder(myPoints):
     myPoints = myPoints.reshape((4, 2))
@@ -22,41 +12,63 @@ def reorder(myPoints):
     myPointsNew[2] = myPoints[np.argmax(diff)]
     return myPointsNew
 
-def detect_chess_board(frame):
-    # Convert the frame to grayscale
+def preprocess_frame(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    # Apply Gaussian blur to reduce noise
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return thresh
 
-    # Perform edge detection using Canny algorithm
-    edges = cv2.Canny(blur, 50, 150)
-    kernel = np.ones((5, 5))
-    imgDial = cv2.dilate(edges, kernel, iterations=1)
-    imgThreshold = cv2.erode(imgDial, kernel, iterations=1)
-    # Find contours in the edge map
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-    # Initialize variables for chess board dimensions
-    board_contour = None
-    board_area = 0
+# Convert real-life dimensions to pixels based on the resolution of the image
+# Assuming the resolution of the image is known
 
-    # Loop through the contours to find the largest quadrilateral (the chess board)
+
+def filter_chessboard_contours(contours):
+    filtered_contours = []
     for cnt in contours:
         # Approximate the contour to a polygon
-        approx = cv2.approxPolyDP(cnt, 0.01 * cv2.arcLength(cnt, True), True)
+        perimeter = cv2.arcLength(cnt, True)
+        approx = cv2.approxPolyDP(cnt, 0.02 * perimeter, True)
 
         # Check if the approximated contour has 4 vertices (quadrilateral)
         if len(approx) == 4:
             # Calculate the area of the contour
             area = cv2.contourArea(cnt)
 
-            # Update the board contour and area if the current contour is larger
-            if area > board_area:
-                board_contour = approx
-                board_area = area
+            # Check if the area of the contour matches the expected chessboard size
+            if abs(area - chessboard_width_px * chessboard_height_px) < 500:  # Adjust threshold as needed
+                filtered_contours.append(approx)
 
-    return board_contour
+    return filtered_contours
+def detect_chess_board(frame):
+    thresh = preprocess_frame(frame)
+    # Apply morphological operations to clean up the image
+    kernel = np.ones((5, 5), np.uint8)
+    opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
+    sure_bg = cv2.dilate(opening, kernel, iterations=3)
+
+    # Find contours
+    contours, _ = cv2.findContours(sure_bg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Filter contours based on area and aspect ratio
+    filtered_contours = []
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if 1000 < area < 30000:  # Adjust the area thresholds as needed
+            peri = cv2.arcLength(cnt, True)
+            approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
+            if len(approx) == 4:
+                filtered_contours.append(approx)
+
+    # Sort contours based on area
+    filtered_contours.sort(key=cv2.contourArea, reverse=True)
+
+    # Return the largest contour
+    if filtered_contours:
+        return filtered_contours[0]
+    else:
+        return None
+
 
 def warp_chess_board(frame, board_contour, new_width, new_height):
     # Order the points of the chess board contour
@@ -70,19 +82,11 @@ def warp_chess_board(frame, board_contour, new_width, new_height):
     # Apply the perspective transform to the frame
     warped = cv2.warpPerspective(frame, matrix, (new_width, new_height))
 
-    # Detect and localize chess pieces on the warped image
-    results = model(warped, stream=True)
-    for result in results:
-        boxes = result.boxes
-        for box in boxes:
-            x1, y1, x2, y2, conf, cls = box.xyxy[0].tolist()
-            cv2.rectangle(warped, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-
     return warped
 
 def localize_squares(warped, square_size, grid_width, grid_height):
     # Localize the squares on the warped chess board
-     # Adjust square size based on smaller dimension
+    # Adjust square size based on smaller dimension
     board_width = grid_width
     board_height = grid_height
 
@@ -96,20 +100,12 @@ def localize_squares(warped, square_size, grid_width, grid_height):
             y = start_y + i * square_size
             cv2.rectangle(warped, (x, y),
                           (x + square_size, y + square_size),
-                          (0,255,0), 2)
-
-    # Detect and localize chess pieces on the localized squares
-    results = model(warped, stream=True)
-    for result in results:
-        boxes = result.boxes
-        for box in boxes:
-            x1, y1, x2, y2, conf, cls = box.xyxy[0].tolist()
-            cv2.rectangle(warped, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+                          (0, 255, 0), 2)
 
     return warped
 
 # Load the video
-cap = cv2.VideoCapture('Video/1.mp4')
+cap = cv2.VideoCapture(0)
 
 # Get the original video dimensions
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -117,20 +113,24 @@ height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 square_size = 70
 # Define the desired resolution
-new_width = 640
+new_width = 650
 new_height = 600
 
 grid_width = square_size * 8
 grid_height = square_size * 8
 
-while True:
-    # Read a frame from the video
-    ret, frame = cap.read()
+# Define the real-life dimensions of the chessboard
+chessboard_width_cm = 25  # in centimeters
+chessboard_height_cm = 25  # in centimeters
 
+chessboard_width_px = int(chessboard_width_cm * (width / new_width))
+chessboard_height_px = int(chessboard_height_cm * (height / new_height))
+
+while True:
+    ret, frame = cap.read()
     if not ret:
         break
 
-    # Resize the frame to the desired resolution
     frame = cv2.resize(frame, (new_width, new_height))
 
     # Detect the chess board contour
@@ -143,13 +143,13 @@ while True:
         # Warp the chess board to a top-down view and localize pieces
         warped = warp_chess_board(frame, board_contour, new_width, new_height)
 
-        # Localize the squares and pieces on the warped image
+        # Localize the squares on the warped image
         warped = localize_squares(warped, square_size, grid_width, grid_height)
 
         # Display the original frame with the detected chess board
         cv2.imshow('Chess Board Detection', frame)
 
-        # Display the warped chess board with localized squares and pieces
+        # Display the warped chess board with localized squares
         cv2.imshow('Warped Chess Board', warped)
     else:
         cv2.imshow('Chess Board Detection', frame)
