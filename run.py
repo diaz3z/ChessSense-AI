@@ -2,12 +2,12 @@ from ultralytics import YOLO
 import cv2
 import math
 # start webcam
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture("Video/4.mp4")
 cap.set(3, 640)
 cap.set(4, 480)
 
 # model
-model = YOLO("runs/detect/train2/weights/best.pt")
+model = YOLO("runs/detect/train3/weights/best.pt")
 
 # object classes
 classNames = ["black-bishop", "black-king", "black-knight", "black-pawn", "black-queen", "black-rook", "white-bishop", "white-king", "white-knight",
@@ -44,11 +44,11 @@ while True:
             font = cv2.FONT_HERSHEY_SIMPLEX
             fontScale = 1
             color = (255, 0, 0)
-            thickness = 1
+            thickness = 3
 
             cv2.putText(img, classNames[cls], org, font, fontScale, color, thickness)
-
-    cv2.imshow('Webcam', img)
+    resize = cv2.resize(img,(840,780))
+    cv2.imshow('Webcam', resize)
     if cv2.waitKey(1) == ord('q'):
         break
 
