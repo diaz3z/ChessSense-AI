@@ -31,9 +31,10 @@ def detect_chess_board(frame):
 
     # Perform edge detection using Canny algorithm
     edges = cv2.Canny(blur, 50, 150)
-    kernel = np.ones((5, 5))
-    imgDial = cv2.dilate(edges, kernel, iterations=1)
-    imgThreshold = cv2.erode(imgDial, kernel, iterations=1)
+    kernel = np.ones((5, 5),np.unit8)
+    morph = cv2.morphologyEx(edges,cv2.MORPH_CLOSE,kernel)
+    #imgDial = cv2.dilate(edges, kernel, iterations=1)
+    #imgThreshold = cv2.erode(imgDial, kernel, iterations=1)
     # Find contours in the edge map
     contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
@@ -109,13 +110,13 @@ def localize_squares(warped, square_size, grid_width, grid_height):
     return warped
 
 # Load the video
-cap = cv2.VideoCapture('Video/1.mp4')
+cap = cv2.VideoCapture("Video/11.mp4")
 
 # Get the original video dimensions
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-square_size = 70
+square_size = 65
 # Define the desired resolution
 new_width = 640
 new_height = 600
