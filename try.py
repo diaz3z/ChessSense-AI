@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 import torch
-
-
+from ultralytics import YOLO
+import math
 
 
 def reorder(myPoints):
@@ -23,15 +23,11 @@ def detect_chess_board(frame):
     # Apply Gaussian blur to reduce noise
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
 
-    # Apply Canny edge detection
-    edges = cv2.Canny(blur, 50, 150)
+    # Apply adaptive thresholding to binarize the image
+    _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # Use morphology to remove noise and fill gaps
-    kernel = np.ones((5,5),np.uint8)
-    morph = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
-
-    # Find contours in the morphed image
-    contours, _ = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Find contours in the binary image
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Initialize variables for chess board dimensions
     board_contour = None
@@ -39,8 +35,9 @@ def detect_chess_board(frame):
 
     # Loop through the contours to find the largest quadrilateral (the chess board)
     for cnt in contours:
-        # Approximate the contour to a polygon
-        approx = cv2.approxPolyDP(cnt, 0.02 * cv2.arcLength(cnt, True), True)
+        # Approximate the contour to a polygon with less vertices
+        epsilon = 0.1 * cv2.arcLength(cnt, True)
+        approx = cv2.approxPolyDP(cnt, epsilon, True)
 
         # Check if the approximated contour has 4 vertices (quadrilateral)
         if len(approx) == 4:
@@ -53,6 +50,7 @@ def detect_chess_board(frame):
                 board_area = area
 
     return board_contour
+
 
 
 
@@ -101,8 +99,51 @@ def localize_squares(warped, square_size, grid_width, grid_height):
 
     return warped
 
+def detect_objects(frame, model, classNames):
+    results = model(frame, stream=True)
+    bounding_boxes = []
+
+    # coordinates
+    for r in results:
+        boxes = r.boxes
+
+        for box in boxes:
+            # bounding box
+            x1, y1, x2, y2 = box.xyxy[0]
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)  # convert to int values
+
+            # put box in frame
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 255), 1)
+
+            # Append the bounding box coordinates to the list
+            bounding_boxes.append((x1, y1, x2, y2))
+
+            # confidence
+            confidence = math.ceil((box.conf[0] * 100)) / 100
+            print("Confidence --->", confidence)
+
+            # class name
+            cls = int(box.cls[0])
+            print("Class name -->", classNames[cls])
+
+            # object details
+            org = [x1, y1]
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            fontScale = 1
+            color = (0, 255, 255)
+            thickness = 2
+
+            cv2.putText(frame, classNames[cls], org, font, fontScale, color, thickness)
+
+    return frame, bounding_boxes
 
 
+# Load YOLO model
+model = YOLO("runs/detect/train3/weights/best.pt")
+
+# Object classes
+classNames = ["black-bishop", "black-king", "black-knight", "black-pawn", "black-queen", "black-rook", "white-bishop", "white-king", "white-knight",
+              "white-pawn", "white-queen", "white-rook"]
 # Load the video
 cap = cv2.VideoCapture(0)
 
@@ -138,14 +179,23 @@ while True:
         # Warp the chess board to a top-down view
         warped = warp_chess_board(frame, board_contour, new_width, new_height)
 
-        # Localize the squares on the warped image
-        warped = localize_squares(warped, square_size, grid_width, grid_height)
+        # Detect objects on the original frame
+        detected_frame, bounding_boxes = detect_objects(frame, model, classNames)
 
-        # Display the original frame with the detected chess board
-        cv2.imshow('Chess Board Detection', frame)
+        # Draw bounding boxes on the original frame
+        for bbox in bounding_boxes:
+            x1, y1, x2, y2 = bbox
+            cv2.rectangle(detected_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+        # Display the original frame with the detected chess board and objects
+        cv2.imshow('Chess Board Detection', detected_frame)
+
+        # Localize the squares on the warped chess board
+        warped = localize_squares(warped, square_size, grid_width, grid_height)
 
         # Display the warped chess board with localized squares
         cv2.imshow('Warped Chess Board', warped)
+
     else:
         cv2.imshow('Chess Board Detection', frame)
 
@@ -154,3 +204,7 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
+
+
+
+

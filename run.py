@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import cv2
 import math
 # start webcam
-cap = cv2.VideoCapture("Video/4.mp4")
+cap = cv2.VideoCapture(0)
 cap.set(3, 640)
 cap.set(4, 480)
 
@@ -42,9 +42,9 @@ while True:
             # object details
             org = [x1, y1]
             font = cv2.FONT_HERSHEY_SIMPLEX
-            fontScale = 1
+            fontScale = 0.5
             color = (255, 0, 0)
-            thickness = 3
+            thickness = 1
 
             cv2.putText(img, classNames[cls], org, font, fontScale, color, thickness)
     resize = cv2.resize(img,(840,780))
