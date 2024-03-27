@@ -1,11 +1,13 @@
 import cv2
 import numpy as np
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 while True:
-    ret , frame = cv2.imread()
+    ret , frame = cap.read()
 
     cv2.imshow("dfjlks", frame)
-    if cv2.waitKey(0) & 0xff == ord('q'):
+    if cv2.waitKey(1) & 0xff == ord('q'):
         break
+cap.release()
+cv2.destroyAllWindows()
