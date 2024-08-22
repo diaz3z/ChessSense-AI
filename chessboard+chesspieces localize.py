@@ -8,7 +8,7 @@ import math
 classNames = ["B", "K", "N", "P", "Q", "R", "b", "k", "n", "p", "q", "r"]
 
 # Load the YOLOv8 model
-model = YOLO("runs/detect/train5/weights/best.pt")
+model = YOLO("runs/detect/train4/weights/best.pt")
 
 def reorder(myPoints):
     myPoints = myPoints.reshape((4, 2))

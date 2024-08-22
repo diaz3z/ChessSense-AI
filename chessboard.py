@@ -65,7 +65,11 @@ def warp_chess_board(frame, board_contour, new_width, new_height):
     # Apply the perspective transform to the frame
     warped = cv2.warpPerspective(frame, matrix, (new_width, new_height))
 
-    return warped
+    # Rotate the warped image by -90 degrees
+    warped_rotated = cv2.rotate(warped, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+    return warped_rotated
+
 
 def localize_squares(warped, square_size, grid_width, grid_height):
     # Localize the squares on the warped chess board
@@ -77,9 +81,6 @@ def localize_squares(warped, square_size, grid_width, grid_height):
     start_x = (warped.shape[1] - board_width) // 2
     start_y = (warped.shape[0] - board_height) // 2
 
-    # Initialize a variable to keep track of the square number
-    square_number = 1
-
     for i in range(8):
         for j in range(8):
             x = start_x + j * square_size
@@ -89,15 +90,12 @@ def localize_squares(warped, square_size, grid_width, grid_height):
                           (0, 255, 0), 2)
 
             # Assign a position to the square
-            square_position = chr(ord('a') + i) + str(j + 1)
+            square_position = chr(ord('a') + j) + str(8 - i)
             # Draw the position text on the square
-            cv2.putText(warped, square_position, (x + 10, y + 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(warped, square_position, (x + 5,y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 
-            square_number += 1
-
-    return warped
-
+    return warped, start_x, start_y
 
 
 # Load the video
@@ -136,7 +134,7 @@ while True:
         warped = warp_chess_board(frame, board_contour, new_width, new_height)
 
         # Localize the squares on the warped image
-        warped = localize_squares(warped, square_size, grid_width, grid_height)
+        warped, start_x, start_y = localize_squares(warped, square_size, grid_width, grid_height)
 
         # Display the original frame with the detected chess board
         cv2.imshow('Chess Board Detection', frame)
