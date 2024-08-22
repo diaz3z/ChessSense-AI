@@ -46,6 +46,14 @@ python save.py
 ```bash
 python chessboard+chesspieces localize.py
 ```
+## Screenshots
+
+![Screenshot 2024-05-05 170634](https://github.com/user-attachments/assets/52af6b20-6bc4-4e94-b004-50b497eabd2e)
+![Screenshot 2024-04-12 173358](https://github.com/user-attachments/assets/95b6f413-95d3-4fa6-a62e-b4e2104acf8a)
+![Screenshot 2024-04-14 115448](https://github.com/user-attachments/assets/15aff379-e3dd-460f-a911-dbd2f0f85fb6)
+![Screenshot 2024-04-14 115556](https://github.com/user-attachments/assets/a50d7b47-0fc9-463e-a2b9-df5851cc89f9)
+![Screenshot 2024-05-05 170634](https://github.com/user-attachments/assets/8f80d62b-84cd-4902-a7ab-84c81f862740)
+
 
 ## How it works
 
