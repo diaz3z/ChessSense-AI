@@ -75,7 +75,3 @@ Contributions to improve the project are welcome. Please feel free to fork the r
 - [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics)
 - [OpenCV](https://opencv.org/)
 - [Stockfish](https://stockfishchess.org/)
-## Screenshots
-
-![App Screenshot] https://github.com/diaz3z/ChessSense-AI/blob/dc7ecfdbded1d469007c3bcdb062948a5abe3c65/Images/Screenshot%202024-05-27%20162428.png
-
