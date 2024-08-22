@@ -49,7 +49,8 @@ python chessboard+chesspieces localize.py
 ## Sample Video
 
 
-https://github.com/user-attachments/assets/a2ae817b-d378-4509-9e9f-16538c9b1724
+https://github.com/user-attachments/assets/69ee8492-eac3-4d0e-8243-f8d7846c6e14
+
 
 
 
